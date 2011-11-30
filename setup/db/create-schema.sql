@@ -1709,3 +1709,4 @@ CREATE TABLE `cloud`.`elastic_lb_vm_map` (
 SET foreign_key_checks = 1;
 
 this is a test
+ok this is test 2

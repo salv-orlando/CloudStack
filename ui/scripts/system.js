@@ -4528,6 +4528,7 @@
                     async: true,
                     success: function(json) {
                       var item = json.updatepodresponse.pod;
+                      args.context.pods[0].allocationstate = item.allocationstate;
                       args.response.success({
                         actionFilter: podActionfilter,
                         data:item
@@ -4559,6 +4560,7 @@
                     async: true,
                     success: function(json) {
                       var item = json.updatepodresponse.pod;
+                      args.context.pods[0].allocationstate = item.allocationstate;
                       args.response.success({
                         actionFilter: podActionfilter,
                         data:item
@@ -4897,6 +4899,7 @@
                     async: true,
                     success: function(json) {
                       var item = json.updateclusterresponse.cluster;
+                      args.context.clusters[0].state = item.allocationstate;
                       args.response.success({
                         actionFilter: clusterActionfilter,
                         data:item
@@ -4928,6 +4931,7 @@
                     async: true,
                     success: function(json) {
                       var item = json.updateclusterresponse.cluster;
+                      args.context.clusters[0].state = item.allocationstate;
                       args.response.success({
                         actionFilter: clusterActionfilter,
                         data:item

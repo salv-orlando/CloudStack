@@ -91,6 +91,7 @@ public enum Config {
 	DirectNetworkNoDefaultRoute("Network", ManagementServer.class, Boolean.class, "direct.network.no.default.route", "false", "Direct Network Dhcp Server should not send a default route", "true/false"),
 	OvsNetwork("Network", ManagementServer.class, Boolean.class, "open.vswitch.vlan.network", "false", "enable/disable vlan remapping of  open vswitch network", null),
 	OvsTunnelNetwork("Network", ManagementServer.class, Boolean.class, "open.vswitch.tunnel.network", "false", "enable/disable open vswitch tunnel network(no vlan)", null),
+	Quantum("Network", ManagementServer.class, Boolean.class, "openstack.quantum", "false", "enable/disable quantum integration", null),
 	VmNetworkThrottlingRate("Network", ManagementServer.class, Integer.class, "vm.network.throttling.rate", "200", "Default data transfer rate in megabits per second allowed in User vm's default network.", null),
 	NetworkLockTimeout("Network", ManagementServer.class, Integer.class, "network.lock.timeout", "600", "Lock wait timeout (seconds) while implementing network", null),
 

@@ -742,6 +742,8 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 long vnetId = Long.parseLong(nic.getBroadcastUri().getHost());
                 return findOrCreateTunnelNetwork(conn, vnetId);
             }
+        } else if (nic.getBroadcastType() == BroadcastDomainType.Quantum) {
+        	//TODO: Do the VIF plugging part!!!!
         } else if (nic.getBroadcastType() == BroadcastDomainType.Storage) {
         	URI broadcastUri = nic.getBroadcastUri();
         	if (broadcastUri == null) {

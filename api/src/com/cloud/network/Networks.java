@@ -54,6 +54,7 @@ public class Networks {
         Native(null, null),
         Vlan("vlan", Integer.class),
         Vswitch("vs", String.class),
+        Quantum("osq", String.class), //osq stands for OpenStack Quantum
         LinkLocal(null, null),
         Vnet("vnet", Long.class),
         Storage("storage", Integer.class),

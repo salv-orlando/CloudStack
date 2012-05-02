@@ -181,17 +181,19 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
 	private StoragePool createNfsStoragePool(Connect conn, String uuid,
 			String host, String path) {
 		String targetPath = _mountPoint + File.separator + uuid;
+		s_logger.info("Target path:" + targetPath); 
 		LibvirtStoragePoolDef spd = new LibvirtStoragePoolDef(poolType.NETFS,
 				uuid, uuid, host, path, targetPath);
 		_storageLayer.mkdir(targetPath);
 		StoragePool sp = null;
 		try {
-			s_logger.debug(spd.toString());
+			s_logger.info(spd.toString());
 			sp = conn.storagePoolDefineXML(spd.toString(), 0);
 			sp.create(0);
 			return sp;
 		} catch (LibvirtException e) {
-			s_logger.debug(e.toString());
+			s_logger.info("BLOODY HELL!");
+			s_logger.warn(e.toString());
 			if (sp != null) {
 				try {
 					sp.undefine();
@@ -208,26 +210,30 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
 	private StoragePool CreateSharedStoragePool(Connect conn, String uuid,
 			String host, String path) {
 		String mountPoint = path;
+		s_logger.info("The path TRALLALA is:" + path + "###");
 		if (!_storageLayer.exists(mountPoint)) {
+			s_logger.info("OH DEAR");
 			return null;
 		}
+		s_logger.info("HERE-1");
 		LibvirtStoragePoolDef spd = new LibvirtStoragePoolDef(poolType.DIR,
 				uuid, uuid, host, path, path);
 		StoragePool sp = null;
+		s_logger.info("HERE-2");
 		try {
-			s_logger.debug(spd.toString());
+			s_logger.info(spd.toString());
 			sp = conn.storagePoolDefineXML(spd.toString(), 0);
 			sp.create(0);
-
+			s_logger.info("HERE-3");
 			return sp;
 		} catch (LibvirtException e) {
-			s_logger.debug(e.toString());
+			s_logger.warn(e.toString());
 			if (sp != null) {
 				try {
 					sp.undefine();
 					sp.free();
 				} catch (LibvirtException l) {
-					s_logger.debug("Failed to define shared mount point storage pool with: "
+					s_logger.warn("Failed to define shared mount point storage pool with: "
 							+ l.toString());
 				}
 			}
@@ -484,8 +490,12 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
 		} catch (LibvirtException e) {
 
 		}
-
+		s_logger.info("Storage pool name:" + name);
+		s_logger.info("Storage pool host:" + host);
+		s_logger.info("Storage pool path:" + path);
+		s_logger.info("Storage pool type:" + type.toString());
 		if (sp == null) {
+			
 			if (type == StoragePoolType.NetworkFilesystem) {
 				sp = createNfsStoragePool(conn, name, host, path);
 			} else if (type == StoragePoolType.SharedMountPoint
@@ -495,7 +505,7 @@ public class LibvirtStorageAdaptor implements StorageAdaptor {
 				sp = createCLVMStoragePool(conn, name, host, path);
 			}
 		}
-
+		s_logger.info("I am here");
 		try {
 			StoragePoolInfo spi = sp.getInfo();
 			if (spi.state != StoragePoolState.VIR_STORAGE_POOL_RUNNING) {

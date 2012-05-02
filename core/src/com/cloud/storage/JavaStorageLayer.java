@@ -106,7 +106,7 @@ public class JavaStorageLayer implements StorageLayer {
     @Override
     public boolean exists(String path) {
         synchronized(path.intern()) {
-            File file = new File(path);
+        	File file = new File(path);
             return file.exists();
         }
     }

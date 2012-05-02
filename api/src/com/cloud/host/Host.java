@@ -33,6 +33,7 @@ public interface Host extends StateObject<Status> {
         ExternalLoadBalancer(false),
         PxeServer(false),
         TrafficMonitor(false),
+        ExternalNetworkManager(false),
 
         ExternalDhcp(false),
         SecondaryStorageVM(true),

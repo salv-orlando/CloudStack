@@ -35,6 +35,7 @@ import javax.naming.ConfigurationException;
 
 import org.apache.commons.httpclient.HttpClient;
 import org.apache.commons.httpclient.methods.GetMethod;
+import org.apache.log4j.Level;
 import org.apache.log4j.Logger;
 
 import com.cloud.agent.Agent.ExitStatus;
@@ -557,10 +558,9 @@ public class AgentShell implements IAgentShell {
 	private void run(String[] args) {
 		try {
 			System.setProperty("java.net.preferIPv4Stack", "true");
-
+			s_logger.setLevel(Level.DEBUG);
 			loadProperties();
 			init(args);
-
 			String instance = getProperty(null, "instance");
 			if (instance == null) {
 				if (Boolean.parseBoolean(getProperty(null, "developer"))) {

@@ -629,6 +629,9 @@ public class S3BucketAction implements ServletAction {
 			try {
 				is = request.getInputStream();
 				String xml = StringHelper.stringFromStream(is);
+				//before invoking the serializer make sure the rootTypes classes are loaded
+				//jvm won't load them just because they are there.
+				Class.forName("com.cloud.bridge.service.core.s3.S3CreateBucketConfiguration");
 				XSerializer serializer = new XSerializer(new XSerializerXmlAdapter()); 
 				objectInContent = serializer.serializeFrom(xml);
 				if(objectInContent != null && !(objectInContent instanceof S3CreateBucketConfiguration)) {
@@ -640,7 +643,11 @@ public class S3BucketAction implements ServletAction {
 				logger.error("Unable to read request data due to " + e.getMessage(), e);
 				throw new NetworkIOException(e);
 				
-			} finally {
+			} catch (ClassNotFoundException e) {
+				logger.error("In a normal world this should never never happen:" + e.getMessage(), e);
+				throw new RuntimeException("A required class was not found in the classpath:" + e.getMessage());
+			}
+			finally {
 				if(is != null) is.close();
 			}
 		}

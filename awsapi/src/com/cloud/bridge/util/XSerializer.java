@@ -110,6 +110,10 @@ public class XSerializer {
     	Class<?> clz = rootTypes.get(elementName);
     	if(clz == null) {
     		logger.error("Object class is not registered for root element " + elementName);
+    		logger.info("Registered classes");
+    		for (String clazz:rootTypes.keySet()) {
+    			logger.info("Found class name:" + clazz);
+    		}
     		throw new IllegalArgumentException("Object class is not registered for root element " + elementName);
     	}
     	

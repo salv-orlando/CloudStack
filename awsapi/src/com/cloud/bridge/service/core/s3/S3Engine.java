@@ -1711,6 +1711,7 @@ public class S3Engine {
 		
 		// If an annoymous request, then canonicalUserId is an empty string
 		String userId = UserContext.current().getCanonicalUserId();
+		logger.info("USER ID IS:" + userId);
         if ( 0 == userId.length())
         {
              // Is an anonymous principal ACL set for this <target, targetId>?
@@ -1833,11 +1834,13 @@ public class S3Engine {
 	private static boolean hasPermission( List<SAcl> privileges, int requestedPermission ) 
 	{
         ListIterator<SAcl> it = privileges.listIterator();
+        logger.info("Permission request:" + requestedPermission);
         while( it.hasNext()) 
         {
            // True providing the requested permission is contained in one or the granted rights for this user.  False otherwise.
            SAcl rights = (SAcl)it.next();
            int permission = rights.getPermission();
+           logger.info("Permission found:" + permission);
            if (requestedPermission == (permission & requestedPermission)) return true;
         }
         return false;

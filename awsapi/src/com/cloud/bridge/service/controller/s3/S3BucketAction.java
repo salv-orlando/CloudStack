@@ -417,6 +417,9 @@ public class S3BucketAction implements ServletAction {
 		
 	}
 
+	//TODO: Please do not condsider this as an efficient implementation.
+	//It is just a hack that keeps a demo going, but it is ridiculous to think we
+	//can possibly keep this code in production
 	public void executeHeadBucket(HttpServletRequest request, HttpServletResponse response) 
 		    throws IOException, XMLStreamException 
 		{

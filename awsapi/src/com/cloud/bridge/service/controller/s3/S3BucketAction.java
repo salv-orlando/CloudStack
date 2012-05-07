@@ -84,6 +84,7 @@ import com.cloud.bridge.service.exception.InternalErrorException;
 import com.cloud.bridge.service.exception.InvalidBucketName;
 import com.cloud.bridge.service.exception.InvalidRequestContentException;
 import com.cloud.bridge.service.exception.NetworkIOException;
+import com.cloud.bridge.service.exception.NoSuchObjectException;
 import com.cloud.bridge.service.exception.ObjectAlreadyExistsException;
 import com.cloud.bridge.service.exception.OutOfServiceException;
 import com.cloud.bridge.service.exception.PermissionDeniedException;
@@ -143,8 +144,10 @@ public class S3BucketAction implements ServletAction {
 			 }
 			 executePutBucket(request, response);
 		} 
-		// Hack for sorting out HEAD bucket operations
-		else if(method.equalsIgnoreCase("GET") || method.equalsIgnoreCase("HEAD")) 
+		else if(method.equalsIgnoreCase("HEAD")) {
+			executeHeadBucket(request, response);
+		} 
+		else if(method.equalsIgnoreCase("GET")) 
 		{
 			 if (queryString != null && queryString.length() > 0) 
 			 {
@@ -414,6 +417,26 @@ public class S3BucketAction implements ServletAction {
 		
 	}
 
+	public void executeHeadBucket(HttpServletRequest request, HttpServletResponse response) 
+		    throws IOException, XMLStreamException 
+		{
+			S3ListBucketRequest engineRequest = new S3ListBucketRequest();
+			engineRequest.setBucketName((String)request.getAttribute(S3Constants.BUCKET_ATTR_KEY));
+			engineRequest.setDelimiter(request.getParameter("delimiter"));
+			engineRequest.setMarker(request.getParameter("marker"));
+			engineRequest.setPrefix(request.getParameter("prefix"));
+			
+			try {
+				ServiceProvider.getInstance().getS3Engine().listBucketContents( engineRequest, false );
+				//if we're here - that's fine the bucket is there! 
+				response.setStatus(200);	
+			} catch (NoSuchObjectException e) {
+				response.setStatus(404);
+			}
+		    response.setContentType("application/xml");		    
+
+		}
+	
 	public void executeGetBucket(HttpServletRequest request, HttpServletResponse response) 
 	    throws IOException, XMLStreamException 
 	{

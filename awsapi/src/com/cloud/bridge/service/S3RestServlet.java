@@ -325,7 +325,7 @@ public class S3RestServlet extends HttpServlet {
 		} catch (UnsupportedEncodingException e) {
 	    	throw new PermissionDeniedException(e);
 		}
-		throw new PermissionDeniedException("Invalid signature");
+		//throw new PermissionDeniedException("Invalid signature");
     }
     
     

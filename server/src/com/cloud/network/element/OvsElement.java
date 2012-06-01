@@ -17,6 +17,8 @@ import java.util.Map;
 
 import javax.ejb.Local;
 
+import org.apache.log4j.Logger;
+
 import com.cloud.deploy.DeployDestination;
 import com.cloud.exception.ConcurrentOperationException;
 import com.cloud.exception.InsufficientCapacityException;
@@ -38,7 +40,9 @@ import com.cloud.vm.VirtualMachineProfile;
 
 @Local(value = NetworkElement.class)
 public class OvsElement extends AdapterBase implements NetworkElement {
-    @Inject
+	private static final Logger s_logger = Logger.getLogger(OvsElement.class);
+	
+	@Inject
     OvsTunnelManager _ovsTunnelMgr;
 
     @Override
@@ -79,9 +83,10 @@ public class OvsElement extends AdapterBase implements NetworkElement {
         if (nic.getTrafficType() != Networks.TrafficType.Guest) {
             return true;
         }
-
+        s_logger.debug("###### Asking the OVS tunnel manager to check and configure tunnels on " + dest.getHost().getName() + 
+        		" for network:" + network);
         _ovsTunnelMgr.VmCheckAndCreateTunnel(vm, network, dest);
-        //_ovsTunnelMgr.applyDefaultFlow(vm.getVirtualMachine(), dest);
+        s_logger.debug("###### Tunnel configuration complete"); 
 
         return true;
     }

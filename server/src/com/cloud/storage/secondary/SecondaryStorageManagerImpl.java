@@ -314,6 +314,7 @@ public class SecondaryStorageManagerImpl implements SecondaryStorageVmManager, V
             SecStorageSetupCommand setupCmd = new SecStorageSetupCommand(secUrl, null);
             for ( SecondaryStorageVmVO ssVm : alreadyRunning ) {
                 HostVO host = _resourceMgr.findHostByName(ssVm.getInstanceName());
+                s_logger.debug("########### The instance name for ssVm is:" + ssVm.getInstanceName());
                 Answer answer = _agentMgr.easySend(host.getId(), setupCmd);
                 if (answer != null && answer.getResult()) {
                     if (s_logger.isDebugEnabled()) {

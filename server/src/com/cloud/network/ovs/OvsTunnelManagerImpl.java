@@ -172,12 +172,12 @@ public class OvsTunnelManagerImpl implements OvsTunnelManager {
 		}
 		if (!r.getResult()) {
 		    tunnel.setState("FAILED");
-			s_logger.warn("Create GRE tunnel failed due to " +
+			s_logger.warn("###### Create GRE tunnel failed due to " +
 					r.getDetails() + s);
 		} else {
 		    tunnel.setState("SUCCESS");
 		    tunnel.setPortName(r.getInPortName());
-		    s_logger.warn("Create GRE tunnel " +
+		    s_logger.warn("###### Create GRE tunnel " +
 		    		r.getDetails() + s);
 		}
 		_tunnelNetworkDao.update(tunnel.getId(), tunnel);
@@ -256,7 +256,7 @@ public class OvsTunnelManagerImpl implements OvsTunnelManager {
 			return;
 		}
 		
-		s_logger.debug("Creating tunnels with OVS tunnel manager");
+		s_logger.debug("###### Creating tunnels with OVS tunnel manager");
 		if (instance.getType() != VirtualMachine.Type.User
 				&& instance.getType() != VirtualMachine.Type.DomainRouter) {
 			s_logger.debug("Will not work if you're not" +
@@ -266,12 +266,15 @@ public class OvsTunnelManagerImpl implements OvsTunnelManager {
 		
 		long hostId = dest.getHost().getId();
 		int key = getGreKey(nw);
+		s_logger.debug("###### The GRE key for this network is:" + key);
 		// Find active VMs with a NIC on the target network
 		List<UserVmVO> vms = _userVmDao.listByNetworkIdAndStates(nw.getId(),
 							  State.Running, State.Starting,
 							  State.Stopping, State.Unknown, State.Migrating);
+		s_logger.debug("###### Found " + vms.size() + "vms on the network " + nw); 
 		// Find routers for the network
 		List<DomainRouterVO> routers = _routerDao.findByNetwork(nw.getId());
+		s_logger.debug("###### Found " + routers.size() + "virtual routers on the network " + nw);
 		List<VMInstanceVO>ins = new ArrayList<VMInstanceVO>();
 		if (vms != null) {
 			ins.addAll(vms);
@@ -286,12 +289,19 @@ public class OvsTunnelManagerImpl implements OvsTunnelManager {
             if (rh == null || rh.longValue() == hostId) {
                 continue;
             }
+            s_logger.debug("###### VM " + v.getInstanceName() + " is deployed on host ID #" + v.getHostId());
+            s_logger.debug("###### Checking for current state of GRE tunnels between " + hostId + " and " + rh);
             OvsTunnelNetworkVO ta =
             		_tunnelNetworkDao.getByFromToNetwork(hostId,
             				rh.longValue(), nw.getId());
+            if (ta == null) {
+            	s_logger.debug("###### Tunnel between " + hostId + " and " + rh + " does not exist");
+            } else {
+            	s_logger.debug("###### Tunnel between " + hostId + " and " + rh + " exists, and its state is:" + ta.getState());
+            }
             // Try and create the tunnel even if a previous attempt failed
             if (ta == null || ta.getState().equals("FAILED")) {
-            	s_logger.debug("Attempting to create tunnel from:" +
+            	s_logger.debug("###### Storing record in DB for tunnel from:" +
             			hostId + " to:" + rh.longValue());
             	if (ta == null) {
             		this.createTunnelRecord(hostId, rh.longValue(),
@@ -301,12 +311,17 @@ public class OvsTunnelManagerImpl implements OvsTunnelManager {
                     toHostIds.add(rh);
                 } 
             }
-
+            s_logger.debug("###### Checking for current state of GRE tunnels between " + rh + " and " + hostId);
             ta = _tunnelNetworkDao.getByFromToNetwork(rh.longValue(),
             		hostId, nw.getId());
-            // Try and create the tunnel even if a previous attempt failed            
+            // Try and create the tunnel even if a previous attempt failed
+            if (ta == null) {
+            	s_logger.debug("###### Tunnel between " + hostId + " and " + rh + " does not exist");
+            } else {
+            	s_logger.debug("###### Tunnel between " + hostId + " and " + rh + " exists, and its state is:" + ta.getState());
+            }
             if (ta == null || ta.getState().equals("FAILED")) {
-            	s_logger.debug("Attempting to create tunnel from:" +
+            	s_logger.debug("###### Storing record in DB for tunnel from:" +
             			rh.longValue() + " to:" + hostId);
             	if (ta == null) {
             		this.createTunnelRecord(rh.longValue(), hostId,
@@ -319,50 +334,62 @@ public class OvsTunnelManagerImpl implements OvsTunnelManager {
         }
 		//TODO: Should we propagate the exception here?
         try {
-            String myIp = getGreEndpointIP(dest.getHost(), nw);
+            s_logger.debug("###### Retrieving GRE endpoint on " + dest.getHost());
+        	String myIp = getGreEndpointIP(dest.getHost(), nw);
             if (myIp == null)
             	throw new GreTunnelException("Unable to retrieve the source " +
             								 "endpoint for the GRE tunnel." +
             								 "Failure is on host:" + dest.getHost().getId());
+            s_logger.debug("###### GRE endpoint is " + myIp);
             boolean noHost = true;
+            s_logger.debug("###### Creating GRE tunnels departing from " + dest.getHost());
 			for (Long i : toHostIds) {
+				s_logger.debug("###### Tunnel remote endpoint - host:" + i);
+				s_logger.debug("###### Retrieving GRE endpoint on " + i);
 				HostVO rHost = _hostDao.findById(i);
 				String otherIp = getGreEndpointIP(rHost, nw);
 	            if (otherIp == null)
 	            	throw new GreTunnelException("Unable to retrieve the remote " +
 	            								 "endpoint for the GRE tunnel." +
 	            								 "Failure is on host:" + rHost.getId());
+	            s_logger.debug("###### GRE endpoint is " + otherIp);
 				Commands cmds = new Commands(
 						new OvsCreateTunnelCommand(otherIp, key, 
 								Long.valueOf(hostId), i, nw.getId(), myIp));
-				s_logger.debug("Ask host " + hostId + 
-						" to create gre tunnel to " + i);
+				s_logger.debug("###### Ask host " + hostId + 
+						" to create gre tunnel to " + i + " - Dispatching command to agent manager");
 				Answer[] answers = _agentMgr.send(hostId, cmds);
+				s_logger.debug("###### Response received!");
 				handleCreateTunnelAnswer(answers);
 				noHost = false;
 			}
-			
+			s_logger.debug("###### Creating GRE tunnels terminating in " + dest.getHost());
 			for (Long i : fromHostIds) {
+				s_logger.debug("###### Tunnel remote endpoint - host:" + i);
 			    HostVO rHost = _hostDao.findById(i);
 			    String otherIp = getGreEndpointIP(rHost, nw);
 				Commands cmds = new Commands(
 				        new OvsCreateTunnelCommand(myIp, key, i,
 				        						   Long.valueOf(hostId),
 				        		                   nw.getId(), otherIp));
-				s_logger.debug("Ask host " + i +
-						" to create gre tunnel to " + hostId);
+				s_logger.debug("###### Ask host " + i +
+						" to create gre tunnel to " + hostId + " - Dispatching command to agent manager");
 				Answer[] answers = _agentMgr.send(i, cmds);
 				handleCreateTunnelAnswer(answers);
+				s_logger.debug("###### Response received!");
 				noHost = false;
 			}
 			// If no tunnels have been configured, perform the bridge setup anyway
 			// This will ensure VIF rules will be triggered
 			if (noHost) {
+				s_logger.debug("###### No tunnel was created - configuring anyway bridge on host " + hostId);
 				Commands cmds = new Commands(
 						new OvsSetupBridgeCommand(key, hostId, nw.getId()));
 				s_logger.debug("Ask host " + hostId + 
 						" to configure bridge for network:" + nw.getId());
+				s_logger.debug("###### Dispatching command to agent manager");
 				Answer[] answers = _agentMgr.send(hostId, cmds);
+				s_logger.debug("###### Response received!");				
 				handleSetupBridgeAnswer(answers);
 			}
 		} catch (Exception e) {

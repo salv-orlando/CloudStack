@@ -1732,7 +1732,9 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
         }
 
         try {
-            NetworkGuru guru = _networkGurus.get(network.getGuruName());
+        	s_logger.debug("###### Implementing Network:" + networkId + " on:" + dest.getHost().getName());
+        	NetworkGuru guru = _networkGurus.get(network.getGuruName());
+        	s_logger.debug("###### The network guru is: " + guru.getName());
             Network.State state = network.getState();
             if (state == Network.State.Implemented || state == Network.State.Setup || state == Network.State.Implementing) {
                 s_logger.debug("Network id=" + networkId + " is already implemented");
@@ -1743,14 +1745,13 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
             if (s_logger.isDebugEnabled()) {
                 s_logger.debug("Asking " + guru.getName() + " to implement " + network);
             }
-
+            s_logger.debug("###### Asking " + guru.getName() + " to implement " + network);
             NetworkOfferingVO offering = _networkOfferingDao.findById(network.getNetworkOfferingId());
 
             network.setReservationId(context.getReservationId());
             network.setState(Network.State.Implementing);
 
             _networksDao.update(networkId, network);
-
             Network result = guru.implement(network, offering, dest, context);
             network.setCidr(result.getCidr());
             network.setBroadcastUri(result.getBroadcastUri());
@@ -1758,7 +1759,7 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
             network.setMode(result.getMode());
             network.setPhysicalNetworkId(result.getPhysicalNetworkId());
             _networksDao.update(networkId, network);
-
+            s_logger.debug("###### CIDR, Gateway, and Broadcast URI configured for network: " + network);
             // implement network elements and re-apply all the network rules
             implementNetworkElementsAndResources(dest, context, network, offering);
 
@@ -1789,17 +1790,19 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
 
         if (network.getGuestType() == Network.GuestType.Isolated && areServicesSupportedInNetwork(network.getId(), Service.SourceNat) && !sharedSourceNat) {
             List<IPAddressVO> ips = _ipAddressDao.listByAssociatedNetwork(network.getId(), true);
-
+            s_logger.debug("###### Implementing source NAT IP for: " + network);
             if (ips.isEmpty()) {
                 s_logger.debug("Creating a source nat ip for " + network);
                 Account owner = _accountMgr.getAccount(network.getAccountId());
                 assignSourceNatIpAddress(owner, network, context.getCaller().getId());
             }
+            s_logger.debug("###### Done");
         }
 
         // get providers to implement
         List<Provider> providersToImplement = getNetworkProviders(network.getId());
         for (NetworkElement element : _networkElements) {
+        	s_logger.debug("###### Implementing network element: " + element.getName());
             if (providersToImplement.contains(element.getProvider())) {
                 if (!isProviderEnabledInPhysicalNetwork(getPhysicalNetworkId(network), "VirtualRouter")) {
                 	// The physicalNetworkId will not get translated into a uuid by the reponse serializer,
@@ -1816,11 +1819,14 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
                 	ex.addProxyObject(network, network.getId(), "networkId");
                     throw ex;                    
                 }
+                s_logger.debug("###### Network element implemented:" + element.getName());
+            } else {
+            	s_logger.debug("###### No service provider found for the network element");
             }
         }
 
         // reapply all the firewall/staticNat/lb rules
-        s_logger.debug("Reprogramming network " + network + " as a part of network implement");
+        s_logger.debug("###### Reprogramming network " + network + " as a part of network implement");
         if (!reprogramNetworkRules(network.getId(), UserContext.current().getCaller(), network)) {
             s_logger.warn("Failed to re-program the network as a part of network " + network + " implement");
             // see DataCenterVO.java
@@ -1874,7 +1880,7 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
         List<NicVO> nics = _nicDao.listByVmId(vmProfile.getId());
 
         // we have to implement default nics first - to ensure that default network elements start up first in multiple
-// nics
+        // nics
         // case)
         // (need for setting DNS on Dhcp to domR's Ip4 address)
         Collections.sort(nics, new Comparator<NicVO>() {
@@ -1888,8 +1894,11 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
             }
         });
 
+        s_logger.debug("###### VM:" + vmProfile.getInstanceName() + " - iterating over NICs");
         for (NicVO nic : nics) {
+        	s_logger.debug("###### NIC:" + nic + " - about to implement network");
             Pair<NetworkGuru, NetworkVO> implemented = implementNetwork(nic.getNetworkId(), dest, context);
+            s_logger.debug("###### NIC:" + nic + " - network implemented");            
             NetworkGuru guru = implemented.first();
             NetworkVO network = implemented.second();
             Integer networkRate = getNetworkRate(network.getId(), vmProfile.getId());
@@ -1904,9 +1913,14 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
                 }
 
                 URI isolationUri = nic.getIsolationUri();
-
+                if (isolationUri!=null) {
+                	s_logger.debug("###### NIC:" + nic + " - Broadcast URI:" + isolationUri.toString());
+                }
                 profile = new NicProfile(nic, network, broadcastUri, isolationUri, networkRate, isSecurityGroupSupportedInNetwork(network), getNetworkTag(vmProfile.getHypervisorType(), network));
+                s_logger.debug("###### NIC:" + nic.getId() + " - Invoking guru for reserving resources");
                 guru.reserve(profile, network, vmProfile, dest, context);
+                s_logger.debug("###### NIC:" + nic + " - Guru invocation completed");
+                s_logger.debug("###### NIC:" + nic + " - Building NIC profile");
                 nic.setIp4Address(profile.getIp4Address());
                 nic.setAddressFormat(profile.getFormat());
                 nic.setIp6Address(profile.getIp6Address());
@@ -1917,30 +1931,37 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
                 nic.setState(Nic.State.Reserved);
                 nic.setNetmask(profile.getNetmask());
                 nic.setGateway(profile.getGateway());
-
+                s_logger.debug("###### NIC:" + nic + " - NIC profile completed");
+                
                 if (profile.getStrategy() != null) {
                     nic.setReservationStrategy(profile.getStrategy());
                 }
 
                 updateNic(nic, network.getId(), 1);
             } else {
+            	s_logger.debug("###### Reservation strategy is not start????");
                 profile = new NicProfile(nic, network, nic.getBroadcastUri(), nic.getIsolationUri(), networkRate, isSecurityGroupSupportedInNetwork(network), getNetworkTag(vmProfile.getHypervisorType(), network));
                 guru.updateNicProfile(profile, network);
                 nic.setState(Nic.State.Reserved);
                 updateNic(nic, network.getId(), 1);
             }
-
+            s_logger.debug("###### NIC:" + nic + " - Preparing network elements");
+            s_logger.debug("###### This is where the fun really starts!!!!");
             for (NetworkElement element : _networkElements) {
                 if (s_logger.isDebugEnabled()) {
                     s_logger.debug("Asking " + element.getName() + " to prepare for " + nic);
                 }
+                s_logger.debug("###### Asking " + element.getName() + " to prepare for " + nic);
                 prepareElement(element, network, profile, vmProfile, dest, context);
+                s_logger.debug("###### Element: " + element.getName() + " preparation completed!");
             }
 
             profile.setSecurityGroupEnabled(isSecurityGroupSupportedInNetwork(network));
             guru.updateNicProfile(profile, network);
             vmProfile.addNic(profile);
+            s_logger.debug("###### NIC: " + nic + " added to profile for virtual machine " + vmProfile.getInstanceName());
         }
+        s_logger.debug("###### VM:" + vmProfile.getInstanceName() + " - NIC Iteration complete");
     }
 
     @Override
@@ -3469,18 +3490,21 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
     protected boolean reprogramNetworkRules(long networkId, Account caller, NetworkVO network) throws ResourceUnavailableException {
         boolean success = true;
         // associate all ip addresses
+        s_logger.debug("###### Apply IP associations for network:" + network);
         if (!applyIpAssociations(network, false)) {
             s_logger.warn("Failed to apply ip addresses as a part of network id" + networkId + " restart");
             success = false;
         }
 
         // apply static nat
+        s_logger.debug("###### Apply Static for network:" + network);
         if (!_rulesMgr.applyStaticNatsForNetwork(networkId, false, caller)) {
             s_logger.warn("Failed to apply static nats a part of network id" + networkId + " restart");
             success = false;
         }
 
         // apply firewall rules
+        s_logger.debug("###### Apply Firewall rules for network:" + network);
         List<FirewallRuleVO> firewallRulesToApply = _firewallDao.listByNetworkAndPurpose(networkId, Purpose.Firewall);
         if (!_firewallMgr.applyFirewallRules(firewallRulesToApply, false, caller)) {
             s_logger.warn("Failed to reapply firewall rule(s) as a part of network id=" + networkId + " restart");
@@ -3488,6 +3512,7 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
         }
 
         // apply port forwarding rules
+        s_logger.debug("###### Apply Port Forwarding rules for network:" + network);
         if (!_rulesMgr.applyPortForwardingRulesForNetwork(networkId, false, caller)) {
             s_logger.warn("Failed to reapply port forwarding rule(s) as a part of network id=" + networkId + " restart");
             success = false;
@@ -3500,12 +3525,14 @@ public class NetworkManagerImpl implements NetworkManager, NetworkService, Manag
         }
 
         // apply load balancer rules
+        s_logger.debug("###### Apply Load Balancing rules for network:" + network);        
         if (!_lbMgr.applyLoadBalancersForNetwork(networkId)) {
             s_logger.warn("Failed to reapply load balancer rules as a part of network id=" + networkId + " restart");
             success = false;
         }
 
         // apply vpn rules
+        s_logger.debug("###### Apply VPN rules for network:" + network);
         List<? extends RemoteAccessVpn> vpnsToReapply = _vpnMgr.listRemoteAccessVpns(networkId);
         if (vpnsToReapply != null) {
             for (RemoteAccessVpn vpn : vpnsToReapply) {

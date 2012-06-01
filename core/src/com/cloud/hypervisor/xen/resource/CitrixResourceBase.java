@@ -387,6 +387,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 
     @Override
     public Answer executeRequest(Command cmd) {
+    	s_logger.debug("A command of class " + cmd.getClass().getCanonicalName() + " was received by this resource instance!");
         Class<? extends Command> clazz = cmd.getClass();
         if (clazz == CreateCommand.class) {
             return execute((CreateCommand) cmd);
@@ -643,10 +644,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
                 nw = Network.create(conn, rec);
                 // Plug dom0 vif only when creating network
                 enableXenServerNetwork(conn, nw, nwName, "tunnel network for account " + key);
-                s_logger.debug("### Xen Server network for tunnels created:" + nwName);                
+                s_logger.debug("###### Xen Server network for tunnels created:" + nwName);                
             } else {
                 nw = networks.iterator().next();
-                s_logger.debug("Xen Server network for tunnels found:" + nwName);                
+                s_logger.debug("###### Xen Server network for tunnels found:" + nwName);                
             }
             return nw;
         } catch (Exception e) {
@@ -664,6 +665,7 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 	    	String nwName = "OVSTunnel" + key;
 	    	//Invoke plugin to setup the bridge which will be used by this network
 	        String bridge = nw.getBridge(conn);
+	        s_logger.debug("###### OVS Bridge name:" + bridge);
 	        Map<String,String> nwOtherConfig = nw.getOtherConfig(conn);
 	        String configuredHosts = nwOtherConfig.get("ovs-host-setup");
 	        boolean configured = false;
@@ -672,13 +674,16 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 	        	for (String hostIdStr:hostIdsStr) {
 	        		if (hostIdStr.equals(((Long)hostId).toString())) {
 	        			configured = true;
+	        			s_logger.debug("###### OVS Bridge setup for:" + bridge + " - already performed here. Stopping");
 	        			break;
 	        		}
 	        	}
 	        }
 	        if (!configured) {
 	            // Plug dom0 vif only if not done before for network and host
+	        	s_logger.debug("###### Enabling the network by plugging temporary VIF");
 	            enableXenServerNetwork(conn, nw, nwName, "tunnel network for account " + key);
+	            s_logger.debug("###### Calling xenapi plugin for setting up bridge");
 	            String result = callHostPlugin(conn, "ovstunnel", "setup_ovs_bridge", "bridge", bridge,
 	            							   "key", String.valueOf(key),
 	            							   "xs_nw_uuid", nw.getUuid(conn),
@@ -687,9 +692,10 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
 	            String[] res = result.split(":");
 	            if (res.length != 2 || !res[0].equalsIgnoreCase("SUCCESS")) {
 	            	//TODO: Should make this error not fatal?
-	            	throw new CloudRuntimeException("Unable to pre-configure OVS bridge " + bridge + " for network ID:" + networkId +
+	            	throw new CloudRuntimeException("###### Unable to pre-configure OVS bridge " + bridge + " for network ID:" + networkId +
 	            									" - " + res);
 	            }
+	            s_logger.debug("###### Bridge configuration successful");
 	        }
 	        return nw;
         } catch (Exception e) {
@@ -4812,9 +4818,11 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
     
     private Answer execute(OvsSetupBridgeCommand cmd) {
         Connection conn = getConnection();
+        s_logger.debug("###### Finding or creating XenServer network for GRE key" + cmd.getKey());
         findOrCreateTunnelNetwork(conn, cmd.getKey());
+        s_logger.debug("###### Configuring tunnel network for GRE key" + cmd.getKey());
         configureTunnelNetwork(conn, cmd.getNetworkId(), cmd.getHostId(), cmd.getKey());
-        s_logger.debug("OVS Bridge configured");
+        s_logger.debug("###### OVS Bridge configured");
     	return new Answer(cmd, true, null);
     }
 
@@ -4865,17 +4873,21 @@ public abstract class CitrixResourceBase implements ServerResource, HypervisorRe
         	
             configureTunnelNetwork(conn, cmd.getNetworkId(), cmd.getFrom(), cmd.getKey());            
             bridge = nw.getBridge(conn);
+            s_logger.debug("###### Will operate on the following OVVS bridge: " + bridge);
+            s_logger.debug("###### Calling xenapi plugin for creating tunnel");
             String result = callHostPlugin(conn, "ovstunnel", "create_tunnel", "bridge", bridge, "remote_ip", cmd.getRemoteIp(), 
             		                       "key", cmd.getKey().toString(), "from", cmd.getFrom().toString(), "to", cmd.getTo().toString());
             String[] res = result.split(":");
             if (res.length == 2 && res[0].equalsIgnoreCase("SUCCESS")) {
+            	s_logger.debug("###### Tunnel successfully created");
                 return new OvsCreateTunnelAnswer(cmd, true, result, res[1], bridge);
             } else {
+            	s_logger.debug("###### Something went wrong on XenServer host");
                 return new OvsCreateTunnelAnswer(cmd, false, result, bridge);
             }
         } catch (Exception e) {
-        	s_logger.debug("Error during tunnel setup");
-        	s_logger.warn("Caught execption when creating ovs tunnel", e);
+        	s_logger.debug("###### Error during tunnel setup");
+        	s_logger.warn("###### Caught execption when creating ovs tunnel", e);
             return new OvsCreateTunnelAnswer(cmd, false, e.getMessage(), bridge);
         }
     }

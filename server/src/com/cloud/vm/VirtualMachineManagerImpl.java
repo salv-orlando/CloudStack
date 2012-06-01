@@ -739,7 +739,9 @@ public class VirtualMachineManagerImpl implements VirtualMachineManager, Listene
                     if (s_logger.isDebugEnabled()) {
                         s_logger.debug("VM is being created in podId: " + vm.getPodIdToDeployIn());
                     }
+                    s_logger.debug("###### About to prepare network configuration for VM:" + vmProfile.getInstanceName());
                     _networkMgr.prepare(vmProfile, dest, ctx); 
+                    s_logger.debug("###### Network configuration for VM " + vmProfile.getInstanceName() + " - Completed!");
                     if (vm.getHypervisorType() != HypervisorType.BareMetal) {
                         _storageMgr.prepare(vmProfile, dest);
                     }
